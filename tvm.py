@@ -17,6 +17,7 @@ Donde:
 Convencion de signos: el dinero que "sale" del bolsillo del usuario es
 negativo, el que "entra" es positivo (igual que en cualquier calculadora
 financiera real).
+prueba a ver como cambia
 """
 
 from dataclasses import dataclass, asdict
