@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Completar registro — FinanceCalc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="shell auth-shell">
+
+  <div class="auth-card">
+    <div class="brand-mark" style="margin-bottom:18px;">FC</div>
+    <h2>Un último paso</h2>
+    <p class="auth-sub">Estás por crear tu cuenta con <strong>{{ pending.email }}</strong></p>
+
+    {% if errors %}
+    <div class="form-errors">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/complete-registration" class="auth-form">
+      <label for="phone">Teléfono</label>
+      <input type="tel" id="phone" name="phone" placeholder="+54 9 11 1234-5678" value="{{ phone }}" required>
+
+      <label class="checkbox-row">
+        <input type="checkbox" name="accept_terms" required {% if accept_terms %}checked{% endif %}>
+        <span>Acepto los <a href="/terms" target="_blank">Términos y Condiciones</a> y la <a href="/privacy" target="_blank">Política de Privacidad</a>, y autorizo el uso de mi email para el envío de campañas y novedades.</span>
+      </label>
+
+      <button type="submit" class="cta-primary" style="width:100%; justify-content:center; margin-top:8px;">Crear cuenta</button>
+    </form>
+
+    <a href="/" class="auth-cancel">Cancelar</a>
+  </div>
+
+</div>
+
+</body>
+</html>

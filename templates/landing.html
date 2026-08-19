@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinanceCalc — Calculadora Financiera TVM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="shell landing-shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">FC</div>
+      <div class="brand-text">
+        <h1>FinanceCalc</h1>
+        <span>Calculadora de Valor del Dinero en el Tiempo</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      {% if user %}
+        <span class="user-chip">
+          {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="">{% endif %}
+          {{ user.name or user.email }}
+        </span>
+        <a class="action-btn" href="/app">Ir a la calculadora</a>
+        <a class="icon-btn" href="/logout" title="Cerrar sesion">⎋</a>
+      {% else %}
+        <a class="action-btn" href="/app">Probar sin cuenta</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="hero">
+    <h2>Tu calculadora financiera,<br><span class="grad-text">rediseñada.</span></h2>
+    <p>Resolvé Valor Presente, Pago, Valor Futuro, Tasa o Períodos con la misma precisión de una calculadora financiera profesional — con una interfaz moderna, historial guardado y amortización detallada.</p>
+
+    {% if user %}
+      <div class="cta-row">
+        <a class="cta-primary" href="/app">Ir a mi calculadora →</a>
+      </div>
+    {% else %}
+      <div class="cta-row">
+        <a class="cta-primary google-btn" href="/login/google">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.96H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.04l3.01-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+          Continuar con Google
+        </a>
+        <a class="cta-secondary" href="/app">Probar sin cuenta</a>
+      </div>
+      <p class="hero-fine">Al continuar con Google, aceptás nuestros <a href="/terms">Términos y Condiciones</a> y <a href="/privacy">Política de Privacidad</a>.</p>
+    {% endif %}
+  </section>
+
+  <section class="features">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Resolvé cualquier variable</h3>
+      <p>PV, PMT, FV, RATE o N — completá 4 y calculamos la quinta, igual que una HP12C o BA II Plus.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Amortización completa</h3>
+      <p>Tabla período a período con interés, capital y saldo. Exportable a CSV en un click.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🕘</div>
+      <h3>Tu historial, siempre</h3>
+      <p>Iniciá sesión con Google y guardá cada cálculo y escenario para reutilizarlo cuando quieras.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎛️</div>
+      <h3>Control total</h3>
+      <p>Tasa nominal o efectiva, capitalización configurable, anualidades ordinarias o anticipadas.</p>
+    </div>
+  </section>
+
+  <footer class="landing-footer">
+    <span>© 2026 FinanceCalc</span>
+    <span><a href="/terms">Términos</a> · <a href="/privacy">Privacidad</a></span>
+  </footer>
+
+</div>
+
+</body>
+</html>

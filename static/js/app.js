@@ -1,6 +1,8 @@
 (() => {
   "use strict";
 
+  const CURRENT_USER = window.FC_USER || null;
+
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -122,7 +124,8 @@
       $("#sum-periodic").textContent = `${fmt(data.result.periodic_rate_pct, 5)}%`;
       $("#result-value").textContent = `${field.toUpperCase()} = ${fmt(value, state.decimals)}`;
       updateSummary();
-      pushHistory(field, value, payload);
+      // El backend ya guardo esta entrada en la base de datos si hay sesion.
+      if (CURRENT_USER) renderHistory(); else pushHistoryLocal(field, value, payload);
     } catch (e) {
       toast("No se pudo conectar con el servidor", true);
     } finally {
@@ -160,15 +163,15 @@
     toast("Ejemplo cargado: préstamo a 60 meses");
   });
 
-  // ---------- History ----------
-  function loadHistory() {
+  // ---------- History (guest: localStorage / logueado: base de datos) ----------
+  function loadHistoryLocal() {
     return JSON.parse(localStorage.getItem("fc_history") || "[]");
   }
-  function saveHistoryList(list) {
+  function saveHistoryListLocal(list) {
     localStorage.setItem("fc_history", JSON.stringify(list.slice(0, 30)));
   }
-  function pushHistory(field, value, payload) {
-    const list = loadHistory();
+  function pushHistoryLocal(field, value, payload) {
+    const list = loadHistoryLocal();
     list.unshift({
       id: Date.now(),
       field,
@@ -176,16 +179,16 @@
       payload,
       time: new Date().toLocaleString("es-AR"),
     });
-    saveHistoryList(list);
+    saveHistoryListLocal(list);
     renderHistory();
   }
-  function renderHistory() {
-    const list = loadHistory();
+
+  function renderHistoryItems(items, onDelete) {
     const wrap = $("#history-list");
     const empty = $("#history-empty");
     wrap.innerHTML = "";
-    empty.style.display = list.length ? "none" : "block";
-    list.forEach((item) => {
+    empty.style.display = items.length ? "none" : "block";
+    items.forEach((item) => {
       const el = document.createElement("div");
       el.className = "list-item";
       el.innerHTML = `
@@ -203,11 +206,38 @@
     $$(".li-del", wrap).forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.dataset.id, 10);
-        saveHistoryList(loadHistory().filter((i) => i.id !== id));
-        renderHistory();
+        onDelete(btn.dataset.id);
       });
     });
+  }
+
+  async function renderHistory() {
+    if (!CURRENT_USER) {
+      const list = loadHistoryLocal();
+      renderHistoryItems(list, (id) => {
+        saveHistoryListLocal(loadHistoryLocal().filter((i) => i.id !== parseInt(id, 10)));
+        renderHistory();
+      });
+      return;
+    }
+    try {
+      const res = await fetch("/api/history");
+      const data = await res.json();
+      if (!data.ok) return;
+      const items = data.history.map((row) => ({
+        id: row.id,
+        field: row.solved_field,
+        value: row[row.solved_field],
+        payload: row,
+        time: new Date(row.created_at).toLocaleString("es-AR"),
+      }));
+      renderHistoryItems(items, async (id) => {
+        await fetch(`/api/history/${id}`, { method: "DELETE" });
+        renderHistory();
+      });
+    } catch (e) {
+      toast("No se pudo cargar el historial", true);
+    }
   }
 
   function restorePayload(payload) {
@@ -222,17 +252,17 @@
     updateSummary();
   }
 
-  // ---------- Saved scenarios ----------
-  function loadSaved() {
+  // ---------- Saved scenarios (guest: localStorage / logueado: base de datos) ----------
+  function loadSavedLocal() {
     return JSON.parse(localStorage.getItem("fc_saved") || "[]");
   }
-  function renderSaved() {
-    const list = loadSaved();
+
+  function renderSavedItems(items, onDelete) {
     const wrap = $("#saved-list");
     const empty = $("#saved-empty");
     wrap.innerHTML = "";
-    empty.style.display = list.length ? "none" : "block";
-    list.forEach((item) => {
+    empty.style.display = items.length ? "none" : "block";
+    items.forEach((item) => {
       const el = document.createElement("div");
       el.className = "list-item";
       el.innerHTML = `
@@ -250,26 +280,73 @@
     $$(".li-del", wrap).forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.dataset.id, 10);
-        localStorage.setItem("fc_saved", JSON.stringify(loadSaved().filter((i) => i.id !== id)));
-        renderSaved();
+        onDelete(btn.dataset.id);
       });
     });
   }
 
-  $("#btn-save").addEventListener("click", () => {
+  async function renderSaved() {
+    if (!CURRENT_USER) {
+      const list = loadSavedLocal();
+      renderSavedItems(list, (id) => {
+        localStorage.setItem("fc_saved", JSON.stringify(loadSavedLocal().filter((i) => i.id !== parseInt(id, 10))));
+        renderSaved();
+      });
+      return;
+    }
+    try {
+      const res = await fetch("/api/saved");
+      const data = await res.json();
+      if (!data.ok) return;
+      const items = data.saved.map((row) => ({
+        id: row.id,
+        name: row.name,
+        payload: row,
+        time: new Date(row.created_at).toLocaleString("es-AR"),
+      }));
+      renderSavedItems(items, async (id) => {
+        await fetch(`/api/saved/${id}`, { method: "DELETE" });
+        renderSaved();
+      });
+    } catch (e) {
+      toast("No se pudo cargar los escenarios guardados", true);
+    }
+  }
+
+  $("#btn-save").addEventListener("click", async () => {
     const name = prompt("Nombre para este escenario:", "Mi cálculo");
     if (!name) return;
-    const list = loadSaved();
-    list.unshift({
-      id: Date.now(),
-      name,
-      payload: currentPayload(null),
-      time: new Date().toLocaleString("es-AR"),
-    });
-    localStorage.setItem("fc_saved", JSON.stringify(list));
-    renderSaved();
-    toast("Escenario guardado");
+
+    if (!CURRENT_USER) {
+      const list = loadSavedLocal();
+      list.unshift({
+        id: Date.now(),
+        name,
+        payload: currentPayload(null),
+        time: new Date().toLocaleString("es-AR"),
+      });
+      localStorage.setItem("fc_saved", JSON.stringify(list));
+      renderSaved();
+      toast("Escenario guardado en este navegador. Iniciá sesión para guardarlo permanentemente.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, ...currentPayload(null) }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        toast(data.error || "No se pudo guardar", true);
+        return;
+      }
+      renderSaved();
+      toast("Escenario guardado");
+    } catch (e) {
+      toast("No se pudo conectar con el servidor", true);
+    }
   });
 
   // ---------- Tabs ----------
