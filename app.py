@@ -6,6 +6,8 @@ frontend de la calculadora es HTML/CSS/JS y consume esta API via fetch.
 """
 
 import os
+import ssl
+from urllib.parse import urlsplit, urlunsplit
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
@@ -19,8 +21,28 @@ from tvm import FREQ_LABELS, TVMError, amortization_schedule, calculate  # noqa:
 app = Flask(__name__, instance_relative_config=True)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me-in-.env")
 
-os.makedirs(app.instance_path, exist_ok=True)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "financecalc.db")
+# En Vercel (y cualquier hosting serverless) el disco es efimero: SQLite
+# perderia los datos entre invocaciones. Si hay DATABASE_URL (Postgres,
+# provisto por ej. por Vercel Postgres/Neon) se usa esa; si no, SQLite local.
+db_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+if db_url:
+    # SQLAlchemy + driver puro Python (pg8000, sin dependencias de compilacion).
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+    # pg8000 no entiende "?sslmode=require" (sintaxis de psycopg2); se quita
+    # de la URL y se fuerza SSL via connect_args, que es lo que exigen
+    # Neon / Vercel Postgres.
+    parts = urlsplit(db_url)
+    db_url = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "connect_args": {"ssl_context": ssl.create_default_context()},
+    }
+else:
+    os.makedirs(app.instance_path, exist_ok=True)
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "financecalc.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID", "")
 app.config["GOOGLE_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET", "")
