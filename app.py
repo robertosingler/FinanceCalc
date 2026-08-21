@@ -7,6 +7,7 @@ frontend de la calculadora es HTML/CSS/JS y consume esta API via fetch.
 
 import os
 import ssl
+import tempfile
 from urllib.parse import urlsplit, urlunsplit
 
 from dotenv import load_dotenv
@@ -40,6 +41,13 @@ if db_url:
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "connect_args": {"ssl_context": ssl.create_default_context()},
     }
+elif os.environ.get("VERCEL"):
+    # El bundle del proyecto es de solo lectura en Vercel (instance/ no se
+    # puede crear ni escribir ahi). /tmp si es escribible, aunque efimero
+    # entre invocaciones -> sirve para que la app no crashee mientras se
+    # configura una base de datos real (ver README, seccion Vercel).
+    db_path = os.path.join(tempfile.gettempdir(), "financecalc.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
 else:
     os.makedirs(app.instance_path, exist_ok=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "financecalc.db")
@@ -54,7 +62,10 @@ app.register_blueprint(auth_bp)
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:  # no tumbar toda la app si la DB no esta lista
+        app.logger.error(f"No se pudo inicializar la base de datos: {e}")
 
 
 # ---------------------------------------------------------------- Paginas --
