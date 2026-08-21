@@ -41,16 +41,20 @@ if db_url:
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "connect_args": {"ssl_context": ssl.create_default_context()},
     }
-elif os.environ.get("VERCEL"):
-    # El bundle del proyecto es de solo lectura en Vercel (instance/ no se
-    # puede crear ni escribir ahi). /tmp si es escribible, aunque efimero
-    # entre invocaciones -> sirve para que la app no crashee mientras se
-    # configura una base de datos real (ver README, seccion Vercel).
-    db_path = os.path.join(tempfile.gettempdir(), "financecalc.db")
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
 else:
-    os.makedirs(app.instance_path, exist_ok=True)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "financecalc.db")
+    # Sin DATABASE_URL: probamos instance/ (persiste entre reinicios en
+    # desarrollo local). Si el filesystem es de solo lectura -como el
+    # bundle de la app en Vercel, incluso sin la env var VERCEL=1 activada-
+    # caemos a /tmp, que siempre es escribible aunque efimero. Asi la app
+    # nunca crashea por esto, tenga o no Postgres configurado.
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+        db_path = os.path.join(app.instance_path, "financecalc.db")
+        with open(db_path, "a"):
+            pass
+    except OSError:
+        db_path = os.path.join(tempfile.gettempdir(), "financecalc.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID", "")
 app.config["GOOGLE_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET", "")
