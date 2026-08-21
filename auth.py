@@ -2,12 +2,13 @@
 identidad viene siempre de Google, y el registro solo completa telefono +
 consentimientos (terminos y marketing por email)."""
 
+import traceback
 from datetime import datetime
 from functools import wraps
 
 from authlib.integrations.flask_client import OAuth
-from flask import (Blueprint, jsonify, redirect, render_template, request,
-                    session, url_for)
+from flask import (Blueprint, current_app, jsonify, redirect, render_template,
+                    request, session, url_for)
 
 from models import User, db
 
@@ -44,36 +45,46 @@ def login_required(f):
 
 @auth_bp.route("/login/google")
 def login_google():
-    redirect_uri = url_for("auth.google_callback", _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    try:
+        redirect_uri = url_for("auth.google_callback", _external=True)
+        return oauth.google.authorize_redirect(redirect_uri)
+    except Exception as e:
+        current_app.logger.error("Error en /login/google:\n" + traceback.format_exc())
+        return (f"<pre>Error al iniciar el login con Google:\n\n"
+                f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}</pre>"), 500
 
 
 @auth_bp.route("/login/google/callback")
 def google_callback():
-    token = oauth.google.authorize_access_token()
-    profile = token.get("userinfo") or oauth.google.parse_id_token(token)
+    try:
+        token = oauth.google.authorize_access_token()
+        profile = token.get("userinfo") or oauth.google.parse_id_token(token)
 
-    google_id = profile["sub"]
-    email = profile["email"]
+        google_id = profile["sub"]
+        email = profile["email"]
 
-    user = User.query.filter_by(google_id=google_id).first()
+        user = User.query.filter_by(google_id=google_id).first()
 
-    if user:
-        user.last_login_at = datetime.utcnow()
-        user.name = profile.get("name") or user.name
-        user.avatar_url = profile.get("picture") or user.avatar_url
-        db.session.commit()
-        session["user_id"] = user.id
-        return redirect("/app")
+        if user:
+            user.last_login_at = datetime.utcnow()
+            user.name = profile.get("name") or user.name
+            user.avatar_url = profile.get("picture") or user.avatar_url
+            db.session.commit()
+            session["user_id"] = user.id
+            return redirect("/app")
 
-    # Usuario nuevo: falta telefono + aceptar terminos -> completar registro
-    session["pending_oauth"] = {
-        "google_id": google_id,
-        "email": email,
-        "name": profile.get("name", ""),
-        "avatar_url": profile.get("picture", ""),
-    }
-    return redirect(url_for("auth.complete_registration"))
+        # Usuario nuevo: falta telefono + aceptar terminos -> completar registro
+        session["pending_oauth"] = {
+            "google_id": google_id,
+            "email": email,
+            "name": profile.get("name", ""),
+            "avatar_url": profile.get("picture", ""),
+        }
+        return redirect(url_for("auth.complete_registration"))
+    except Exception as e:
+        current_app.logger.error("Error en /login/google/callback:\n" + traceback.format_exc())
+        return (f"<pre>Error en el callback de Google:\n\n"
+                f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}</pre>"), 500
 
 
 @auth_bp.route("/complete-registration", methods=["GET", "POST"])
