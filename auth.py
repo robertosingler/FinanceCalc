@@ -48,10 +48,12 @@ def login_google():
     try:
         redirect_uri = url_for("auth.google_callback", _external=True)
         return oauth.google.authorize_redirect(redirect_uri)
-    except Exception as e:
+    except Exception:
         current_app.logger.error("Error en /login/google:\n" + traceback.format_exc())
-        return (f"<pre>Error al iniciar el login con Google:\n\n"
-                f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}</pre>"), 500
+        return render_template(
+            "error.html", code=500,
+            message="No pudimos iniciar el login con Google. Intenta de nuevo en unos minutos.",
+        ), 500
 
 
 @auth_bp.route("/login/google/callback")
@@ -81,10 +83,12 @@ def google_callback():
             "avatar_url": profile.get("picture", ""),
         }
         return redirect(url_for("auth.complete_registration"))
-    except Exception as e:
+    except Exception:
         current_app.logger.error("Error en /login/google/callback:\n" + traceback.format_exc())
-        return (f"<pre>Error en el callback de Google:\n\n"
-                f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}</pre>"), 500
+        return render_template(
+            "error.html", code=500,
+            message="No pudimos completar el login con Google. Intenta de nuevo en unos minutos.",
+        ), 500
 
 
 @auth_bp.route("/complete-registration", methods=["GET", "POST"])
