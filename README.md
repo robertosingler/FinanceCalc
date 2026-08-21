@@ -1,6 +1,6 @@
 # FinanceCalc
 
-Ofir Tal note 
+Ofir Tal note + 2
 
 Calculadora financiera TVM (Time Value of Money) moderna — misma funcionalidad que una calculadora financiera tradicional (PV, PMT, FV, RATE, N, amortización), con una interfaz rediseñada, login con Google y guardado permanente de historial.
 
