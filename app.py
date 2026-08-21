@@ -106,6 +106,17 @@ def admin_users():
     return render_template("admin_users.html", users=users)
 
 
+@app.route("/admin/users/<int:user_id>")
+@login_required
+def admin_user_detail(user_id):
+    user = current_user()
+    if not ADMIN_EMAILS or user.email.lower() not in ADMIN_EMAILS:
+        return render_template("error.html", code=403,
+                                message="No tenes permiso para ver esta pagina."), 403
+    target = User.query.get_or_404(user_id)
+    return render_template("admin_user_detail.html", u=target)
+
+
 # -------------------------------------------------------------------- API --
 
 @app.route("/api/me")
